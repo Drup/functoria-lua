@@ -12,6 +12,130 @@ let tool_name = "functoria-lua"
 let src = Logs.Src.create tool_name ~doc:"functoria-lua cli tool"
 module Log = (val Logs.src_log src : Logs.LOG)
 
+(** Devices **)
+
+class base = object
+  method packages: package list Key.value = Key.pure []
+  method keys: Key.t list = []
+  method connect (_:Info.t) (_:string) (_l: string list) = "()"
+  method configure (_: Info.t): (unit, R.msg) R.t = R.ok ()
+  method build (_: Info.t): (unit, R.msg) R.t = R.ok ()
+  method clean (_: Info.t): (unit, R.msg) R.t = R.ok ()
+  method deps: abstract_impl list = []
+end
+
+(* Luavalue.USERDATA *)
+type userdata = USERDATA
+let userdata = Type USERDATA
+
+
+(* Luavalue.S *)
+type luavalue = VALUE
+let value = Type VALUE
+let mk_value = impl @@ object
+    inherit base
+    method ty = userdata @-> value
+    method name = "ast"
+    method module_name = "Luavalue.Make"
+  end
+
+(* Luaast.S *)
+type ast = AST
+let ast = Type AST
+let mk_ast = impl @@ object
+    inherit base
+    method ty = value @-> ast
+    method name = "ast"
+    method module_name = "Luaast.Make"
+  end
+
+(* Luaparser.S *)
+type parser = PARSER
+let parser = Type PARSER
+let maker = ast @-> parser
+
+let mk_parser = impl @@ object
+    inherit base
+    method ty = maker
+    method name = "parser"
+    method module_name = "Luaparser.MakeStandard"
+  end
+
+(* Lualib.BARECODE *)
+type barecode = BARECODE
+let barecode = Type BARECODE
+
+let bc n mn = impl @@ object
+    inherit base
+    method ty = barecode
+    method name = n
+    method module_name = mn
+  end
+
+let mathlib = bc "mathlib" "Luamathlib.M"
+let strlib = bc "strlib" "Luastrlib.M"
+
+(* Lualib.USERCODE *)
+type +'a usercode = USERCODE
+let usercode = Type USERCODE
+
+(* Types *)
+
+type +'a usertype = USERTYPE
+let usertype = Type USERTYPE
+
+type +'a combined = 'a usertype
+let combined = usertype
+
+type +'a view = VIEW
+let view = Type VIEW
+
+let withtype = impl @@ object
+    inherit base
+    method ty : 'a. ('a usertype -> barecode -> 'a usercode) typ = usertype @-> barecode @-> usercode
+    method name = "withtype"
+    method module_name = "Lua.Lib.WithType"
+  end
+
+let takeview i =
+  proj (combined @-> view) ("TV"^string_of_int i)
+let tv1 (_ty : 'a typ) : (< tv1 : 'a > combined -> 'a view) impl = takeview 1
+let tv2 (_ty : 'a typ) : (< tv2 : 'a > combined -> 'a view) impl = takeview 2
+let tv3 (_ty : 'a typ) : (< tv3 : 'a > combined -> 'a view) impl = takeview 3
+let tv4 (_ty : 'a typ) : (< tv4 : 'a > combined -> 'a view) impl = takeview 4
+
+let combine2 = impl @@ object
+    inherit base
+    method ty : 'a 'b . ('a usertype -> 'b usertype -> < tv1 : 'a ; tv2 : 'b > combined) typ = usertype @-> usertype @-> combined
+    method name = "combine2"
+    method module_name = "Combine.T2"
+  end
+let combine3 = impl @@ object
+    inherit base
+    method ty : 'a 'b 'c . ('a usertype -> 'b usertype -> 'c usertype -> < tv1 : 'a ; tv2 : 'b ; tv3 : 'c > combined) typ = usertype @-> usertype @-> usertype @-> combined
+    method name = "combine3"
+    method module_name = "Combine.T3"
+  end
+let combine4 = impl @@ object
+    inherit base
+    method ty : 'a 'b 'c 'd. ('a usertype -> 'b usertype -> 'c usertype -> 'd usertype -> < tv1 : 'a ; tv2 : 'b ; tv3 : 'c ; tv4 : 'd > combined) typ = usertype @-> usertype @-> usertype @-> usertype @-> combined
+    method name = "combine4"
+    method module_name = "Combine.T4"
+  end
+
+
+(* Luainterp.S *)
+type interp = INTERP
+let interp = Type INTERP
+let mk_interp = impl @@ object
+    inherit base
+    method ty = userdata @-> usercode @-> interp
+    method name = "interp"
+    method module_name = "Luainterp.Make"
+  end
+
+(** Tool-related functions *)
+
 let with_output ?mode f k err =
   match Bos.OS.File.with_oc ?mode f k () with
   | Ok b -> b
