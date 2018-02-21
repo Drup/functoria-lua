@@ -1,0 +1,18 @@
+opam-version: "1.2"
+maintainer:   ["drupyog@zoho.com"]
+authors:      ["Gabriel Radanne"]
+homepage:     "https://github.com/Drup/functoria-lua"
+bug-reports:  "https://github.com/Drup/functoria-lua/issues/"
+dev-repo:     "https://github.com/Drup/functoria-lua.git"
+tags:         ["functor"]
+
+build: [
+  ["jbuilder" "subst"]{pinned}
+  ["jbuilder" "build" "-p" name "-j" jobs]
+]
+
+depends: [
+  "jbuilder"   {build & >= "1.0+beta10"}
+  "functoria"          {>= "2.2.0"}
+]
+available: [ocaml-version >= "4.04.2"]
