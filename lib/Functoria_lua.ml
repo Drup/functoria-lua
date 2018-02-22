@@ -281,7 +281,7 @@ let configure_opam ~app_name info =
       let fmt = Format.formatter_of_out_channel oc in
       append fmt "# %s" (generated_header ());
       Info.opam ~name:app_name fmt info;
-      append fmt "build: [ \"%s\" \"build\" ]" name;
+      append fmt "build: [ \"%s\" \"build\" ]" tool_name;
       append fmt "available: [ ocaml-version >= \"4.03.0\" ]";
       R.ok ())
     "opam file"
@@ -356,7 +356,7 @@ module Project = struct
   let prelude = {|
 let (>>=) x f = f x
 let return x = x
-let run f = f ()
+let run () = ()
 |}
 
   (* The ocamlfind packages to use when compiling config.ml *)
