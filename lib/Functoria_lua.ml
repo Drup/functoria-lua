@@ -24,17 +24,36 @@ class base = object
   method deps: abstract_impl list = []
 end
 
-(* Luavalue.USERDATA *)
-type userdata = USERDATA
-let userdata = Type USERDATA
+type +'a usertype = USERTYPE
+let usertype = Type USERTYPE
+
+class ['ty] new_type
+     ?(packages=[]) ?(keys=[]) ?(deps=[]) module_name
+  : ['ty usertype] configurable
+  =
+  let name = Name.create module_name ~prefix:"type" in
+  object
+    method ty : 'ty usertype typ = usertype
+    method name = name
+    method module_name = module_name
+    method keys = keys
+    method packages = Key.pure packages
+    method connect (_:Info.t) (_:string) (_l: string list) = "()"
+    method clean _ = R.ok ()
+    method configure _ = R.ok ()
+    method build _ = R.ok ()
+    method deps = deps
+  end
+let new_type ?packages ?keys ?deps module_name =
+  impl (new new_type ?packages ?keys ?deps module_name)
 
 
 (* Luavalue.S *)
-type luavalue = VALUE
+type _ luavalue = VALUE
 let value = Type VALUE
-let mk_value = impl @@ object
+let mk_value () = impl @@ object
     inherit base
-    method ty = userdata @-> value
+    method ty = usertype @-> value
     method name = "ast"
     method module_name = "Luavalue.Make"
   end
@@ -42,7 +61,7 @@ let mk_value = impl @@ object
 (* Luaast.S *)
 type ast = AST
 let ast = Type AST
-let mk_ast = impl @@ object
+let mk_ast () = impl @@ object
     inherit base
     method ty = value @-> ast
     method name = "ast"
@@ -79,59 +98,120 @@ let strlib = bc "strlib" "Luastrlib.M"
 type +'a usercode = USERCODE
 let usercode = Type USERCODE
 
-(* Types *)
+let c2 () = impl @@ object
+    inherit base
+    method ty = usercode @-> usercode @-> usercode
+    method name = "combineC2"
+    method module_name = "Lua.Lib.Combine.C2"
+  end
+let c3 () = impl @@ object
+    inherit base
+    method ty
+      = usercode @-> usercode @-> usercode @-> usercode
+    method name = "combineC3"
+    method module_name = "Lua.Lib.Combine.C3"
+  end
+let c4 () = impl @@ object
+    inherit base
+    method ty
+      = usercode @-> usercode @-> usercode @-> usercode @-> usercode
+    method name = "combineC4"
+    method module_name = "Lua.Lib.Combine.C4"
+  end
+let c5 () = impl @@ object
+    inherit base
+    method ty
+      = usercode @-> usercode @-> usercode @-> usercode @-> usercode @-> usercode
+    method name = "combineC5"
+    method module_name = "Lua.Lib.Combine.C5"
+  end
 
-type +'a usertype = USERTYPE
-let usertype = Type USERTYPE
+(* Types *)
 
 type +'a combined = 'a usertype
 let combined = usertype
 
-type +'a view = VIEW
+let as_type x = x
+
+type (+'a, +'b) view = VIEW
 let view = Type VIEW
 
-let withtype = impl @@ object
+let withtype () = impl @@ object
     inherit base
-    method ty : 'a. ('a usertype -> barecode -> 'a usercode) typ = usertype @-> barecode @-> usercode
+    method ty = usertype @-> barecode @-> usercode
     method name = "withtype"
     method module_name = "Lua.Lib.WithType"
   end
 
 let takeview i =
   proj (combined @-> view) ("TV"^string_of_int i)
-let tv1 (_ty : 'a typ) : (< tv1 : 'a > combined -> 'a view) impl = takeview 1
-let tv2 (_ty : 'a typ) : (< tv2 : 'a > combined -> 'a view) impl = takeview 2
-let tv3 (_ty : 'a typ) : (< tv3 : 'a > combined -> 'a view) impl = takeview 3
-let tv4 (_ty : 'a typ) : (< tv4 : 'a > combined -> 'a view) impl = takeview 4
+let tv1 () : ((< tv1 : 'a ; .. > as 'c) combined -> ('a, 'c) view) impl = takeview 1
+let tv2 () : ((< tv2 : 'a ; .. > as 'c) combined -> ('a, 'c) view) impl = takeview 2
+let tv3 () : ((< tv3 : 'a ; .. > as 'c) combined -> ('a, 'c) view) impl = takeview 3
+let tv4 () : ((< tv4 : 'a ; .. > as 'c) combined -> ('a, 'c) view) impl = takeview 4
 
-let combine2 = impl @@ object
+let t2 () = impl @@ object
     inherit base
-    method ty : 'a 'b . ('a usertype -> 'b usertype -> < tv1 : 'a ; tv2 : 'b > combined) typ = usertype @-> usertype @-> combined
+    method ty = usertype @-> usertype @-> combined
     method name = "combine2"
-    method module_name = "Combine.T2"
+    method module_name = "Lua.Lib.Combine.T2"
   end
-let combine3 = impl @@ object
+let t3 () = impl @@ object
     inherit base
-    method ty : 'a 'b 'c . ('a usertype -> 'b usertype -> 'c usertype -> < tv1 : 'a ; tv2 : 'b ; tv3 : 'c > combined) typ = usertype @-> usertype @-> usertype @-> combined
+    method ty = usertype @-> usertype @-> usertype @-> combined
     method name = "combine3"
-    method module_name = "Combine.T3"
+    method module_name = "Lua.Lib.Combine.T3"
   end
-let combine4 = impl @@ object
+let t4 () = impl @@ object
     inherit base
-    method ty : 'a 'b 'c 'd. ('a usertype -> 'b usertype -> 'c usertype -> 'd usertype -> < tv1 : 'a ; tv2 : 'b ; tv3 : 'c ; tv4 : 'd > combined) typ = usertype @-> usertype @-> usertype @-> usertype @-> combined
+    method ty = usertype @-> usertype @-> usertype @-> usertype @-> combined
     method name = "combine4"
-    method module_name = "Combine.T4"
+    method module_name = "Lua.Lib.Combine.T4"
   end
 
+(* Luaiolib *)
+type iolib
+let iolib_type : iolib usertype impl = new_type "Luaiolib.T"
+let iolib () = impl @@ object
+    inherit base
+    method ty = view @-> usercode
+    method name = "iolib"
+    method module_name = "Luaiolib.Make"
+  end
 
-(* Luainterp.S *)
+(* Luacamllib *)
+let camllib () = impl @@ object
+    inherit base
+    method ty = view @-> usercode
+    method name = "camllib"
+    method module_name = "Luacamllib.Make"
+  end
+
+(* Lua.MakeEval *)
+type eval = EVAL
+let eval = Type EVAL
+let mk_eval () = impl @@ object
+    inherit base
+    method ty = usertype @-> usercode @-> eval
+    method name = "eval"
+    method module_name = "Lua.MakeEval"
+  end
+
 type interp = INTERP
 let interp = Type INTERP
 let mk_interp = impl @@ object
     inherit base
-    method ty = userdata @-> usercode @-> interp
+    method ty = maker @-> eval @-> interp
     method name = "interp"
-    method module_name = "Luainterp.Make"
+    method module_name = "Lua.MakeInterp"
+  end
+
+let runlua = impl @@ object
+    inherit base
+    method ty = interp @-> job
+    method name = "run"
+    method module_name = "Lua.Run"
+    method! connect _ _ _ = "fun () -> ()"
   end
 
 (** Tool-related functions *)
@@ -206,7 +286,7 @@ let configure_opam ~app_name info =
       R.ok ())
     "opam file"
 
-let clean_opam ~app_name = Bos.OS.File.delete Fpath.(v app_name + "opam")
+let clean_opam ~name = Bos.OS.File.delete Fpath.(v name + "opam")
 
 
 let app_name name =
@@ -224,7 +304,7 @@ let clean i =
   let name = Info.name i in
   clean_myocamlbuild () >>= fun () ->
   clean_makefile () >>= fun () ->
-  clean_opam ~app_name:(app_name name) >>= fun () ->
+  clean_opam ~name >>= fun () ->
   Bos.OS.File.delete Fpath.(v "main.native.o") >>= fun () ->
   Bos.OS.File.delete Fpath.(v "main.native") >>= fun () ->
   Bos.OS.File.delete Fpath.(v name)
@@ -249,15 +329,12 @@ let compile i =
       "principal";
       "safe_string" ] @
     (if terminal () then ["color(always)"] else [])
-  and cflags = [ "-g" ]
-  and lflags = [] in
+  in
   let concat = String.concat ~sep:"," in
   let cmd = Bos.Cmd.(v "ocamlbuild" % "-use-ocamlfind" %
                      "-classic-display" %
                      "-tags" % concat tags %
                      "-pkgs" % concat libs %
-                     "-cflags" % concat cflags %
-                     "-lflags" % concat lflags %
                      "main.native")
   in
   Log.info (fun m -> m "executing %a" Bos.Cmd.pp cmd);
@@ -276,9 +353,11 @@ let build i =
 module Project = struct
   let name = "functoria-lua"
   let version = "%%VERSION%%"
-  let prelude =
-    "let return x = x\n\
-     let run f = f ()"
+  let prelude = {|
+let (>>=) x f = f x
+let return x = x
+let run f = f ()
+|}
 
   (* The ocamlfind packages to use when compiling config.ml *)
   let packages = [package "functoria-lua"]
@@ -296,6 +375,7 @@ module Project = struct
       method! packages =
         let common = [
           package "lua-ml";
+          package "functoria-runtime";
           package ~build:true "ocamlfind" ;
           package ~build:true "ocamlbuild" ;
         ] in
