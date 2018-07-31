@@ -1,13 +1,13 @@
 open Functoria_lua
 
 (** User defined types *)
-let char : char usertype impl = new_type "Toplua.LuaChar"
+let char : char usertype impl = new_type "MyLua.LuaChar"
 type pair
-let pair : pair usertype impl = new_type "Toplua.Pair"
+let pair : pair usertype impl = new_type "MyLua.Pair"
 
 (** Semantics for the user defined types *)
 let makelib = impl @@ object
-    inherit [_]foreign "Toplua.MakeLib" (view @-> view @-> usercode)
+    inherit [_]foreign "MyLua.MakeLib" (view @-> view @-> usercode)
     method connect _ _ _ = "()"
   end
 
@@ -28,7 +28,7 @@ let dump =
   Key.create "dumpstate" key
 
 let runinterp =
-  foreign ~keys:Key.[abstract files; abstract dump] "Toplua.Run" (interp @-> job)
+  foreign ~keys:Key.[abstract files; abstract dump] "MyLua.Run" (interp @-> job)
 
 (** Functor spaghetti *)
 
